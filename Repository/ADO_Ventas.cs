@@ -36,17 +36,17 @@ namespace EntregaCoder.Repository
             return listaVentas;
         }
 
-        public static void Cargar_Venta(int idUsuario, string descripcionProducto, int stockVendido)
+        public static void Cargar_Venta(int idUsuario, string comentario, List<ProductoVendido> listaProductos)
         {
             List<Usuario> lista = ADO_Usuario.Traer_Todos_Usuarios();
-            List<Producto> listaProducto = ADO_Producto.Traer_Todos_Productos();
+            List<Producto> listaTodosProductos = ADO_Producto.Traer_Todos_Productos();
             Producto productoNuevo = new Producto();
 
             bool validacion1 = false;
             bool validacion2 = false;
-            string comentario = "Venta de " + stockVendido + " " + descripcionProducto;
+            
 
-            //VALIDACION DE SI EXISTE EL USUARIO Y SI EXISTE EL PRODUCTO INGRESADO
+            //VALIDACION DE SI EXISTE EL USUARIO 
             foreach (Usuario usuario in lista)
             {
                 if (usuario.Id == idUsuario)
@@ -54,56 +54,21 @@ namespace EntregaCoder.Repository
                     validacion1 = true;
                 }
             }
-            foreach (Producto producto in listaProducto)
-            {
-                if (producto.Descripciones == descripcionProducto)
-                {
-                    validacion2 = true;
-
-                    //BUSCAR CAMBIAR LA DESCRIPCION DEL PRODUCTO POR SU ID,
-                    //YA QUE ESTE ULTIMO ES EL QUE SE INGRESA EN LA TABLA PRODUCTOVENDIDO
-                    
-                    
-                    productoNuevo.Id =  producto.Id;
-                    productoNuevo.Descripciones = producto.Descripciones;
-                    productoNuevo.Stock = producto.Stock;
-                    productoNuevo.Costo = producto.Costo;
-                    productoNuevo.PrecioVenta = producto.PrecioVenta;
-                    productoNuevo.IdUsuario = producto.IdUsuario;
-                }
-                
-            }
-            if(validacion1 && validacion2)
+            
+            if(validacion1)
             {
                 //CONEXION A LA BASE DE DATOS
                 using (SqlConnection connection = new SqlConnection(General.connectionString()))
                 {
-                    
-                    //CARGAR VENTA A PRODUCTOS VENDIDOS
                     connection.Open();
-                    string commText = "INSERT INTO ProductoVendido (Stock, IdProducto, IdVenta) " +
-                        "VALUES (@Stock, @IdProdu, @IdVen)";
-                    SqlCommand Comm = new SqlCommand(commText, connection);
 
-                    var Parametero = new SqlParameter("Stock", SqlDbType.Int);
-                    Parametero.Value = stockVendido;
-                    Comm.Parameters.Add(Parametero);
+                    //INSERTAR EN LA TABLA VENTA LA VENTA, EL ID LO PASO COMO PARAMETRO,
+                    //EL COMENTARIO YA LO CREAMOS.
 
-                    var Parametero1 = new SqlParameter("IdProdu", SqlDbType.BigInt);
-                    Parametero1.Value = productoNuevo.Id;
-                    Comm.Parameters.Add(Parametero1);
-
-                    var Parametero2 = new SqlParameter("IdVen", SqlDbType.BigInt);
-                    Parametero2.Value = idUsuario;
-                    Comm.Parameters.Add(Parametero2);
-
-                    Comm.ExecuteNonQuery();
-
-
-                    //CARGAR VENTA A TABLA DE VENTAS
-
+                    //USAMOS EL SELECT @@IDENTITY PARA GUARDAR EN UNA VARIABLE EL ID DE LA NUEVA VENTA,
+                    //YA QUE ESTE SERA PASADO COMO PARAMETRO A LA TABLA PRODUCTOVENDIDO EN LA COLUMNA "IdVenta". 
                     string commText1 = "INSERT INTO Venta (Comentarios, IdUsuario) " +
-                        "VALUES (@Com, @IdUsu)";
+                            "VALUES (@Com, @IdUsu)  select @@identity";
                     SqlCommand Comm1 = new SqlCommand(commText1, connection);
 
                     var Parameter = new SqlParameter("Com", SqlDbType.VarChar);
@@ -114,12 +79,65 @@ namespace EntregaCoder.Repository
                     Parameter1.Value = idUsuario;
                     Comm1.Parameters.Add(Parameter1);
 
-                    Comm1.ExecuteNonQuery();
+                    int nuevoId = Convert.ToInt32(Comm1.ExecuteScalar());
+                
 
-                    //Actualizar el Stock del producto que se vendio
-                    productoNuevo.Stock = productoNuevo.Stock - stockVendido;
-                    ADO_Producto.Modificar_Producto(productoNuevo);
+                
 
+                
+               
+
+                    //ITERAR POR TODOS LOS PRODUCTOSVENDIDOS QUE PASO EL USUARIO, VALIDAR QUE EL PRODUCTO EXISTE
+                    //Y AGREGAR CADA UNO DE ELLOS A LA TABLA PRODUCTOVENDIDO.
+                    foreach (ProductoVendido producto in listaProductos)
+                    {
+                        
+                        //VALIDAR QUE EL PRODUCTO EXISTE. SI EXISTE, TRAER TODOS LOS DATOS DEL PRODUCTO.
+                        foreach (Producto producto1 in listaTodosProductos)
+                        {
+                            if (producto1.Id == producto.IdProducto)
+                            {
+                                validacion2 = true;
+
+                                productoNuevo.Id = producto1.Id;
+                                productoNuevo.Descripciones = producto1.Descripciones;
+                                productoNuevo.Stock = producto1.Stock;
+                                productoNuevo.Costo = producto1.Costo;
+                                productoNuevo.PrecioVenta = producto1.PrecioVenta;
+                                productoNuevo.IdUsuario = producto1.IdUsuario;
+                            }
+                        }
+
+                        
+                        if (validacion2)
+                        {
+
+                            //INSERTAR EN LA TABLA PRODUCTOS VENDIDOS LOS DATOS DE LA NUEVA VENTA.
+
+                            string commText = "INSERT INTO ProductoVendido (Stock, IdProducto, IdVenta) " +
+                                "VALUES (@Stock, @IdProdu, @IdVen)";
+                            SqlCommand Comm = new SqlCommand(commText, connection);
+
+                            var Parametero = new SqlParameter("Stock", SqlDbType.Int);
+                            Parametero.Value = producto.Stock;
+                            Comm.Parameters.Add(Parametero);
+
+                            var Parametero1 = new SqlParameter("IdProdu", SqlDbType.BigInt);
+                            Parametero1.Value = producto.IdProducto;
+                            Comm.Parameters.Add(Parametero1);
+
+                            var Parametero2 = new SqlParameter("IdVen", SqlDbType.BigInt);
+                            Parametero2.Value = nuevoId;
+                            Comm.Parameters.Add(Parametero2);
+
+                            Comm.ExecuteNonQuery();
+
+
+                            //Actualizar el Stock del producto que se vendio
+                            productoNuevo.Stock = productoNuevo.Stock - producto.Stock;
+                            ADO_Producto.Modificar_Producto(productoNuevo);
+                        }
+                    }
                 }
             }
 

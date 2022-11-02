@@ -16,9 +16,9 @@ namespace EntregaCoder.Controllers
         }
 
         [HttpPost("CargarVenta")]
-        public void CargarVenta( int idUsuario,string descripcionProducto, int stockVendido)
+        public void CargarVenta( int idUsuario, string comentario, List<ProductoVendido> listaProductos)
         {
-            ADO_Ventas.Cargar_Venta(idUsuario, descripcionProducto, stockVendido);
+            ADO_Ventas.Cargar_Venta(idUsuario, comentario, listaProductos);
         }
 
         [HttpGet("GetTodasVentas")]

@@ -15,7 +15,9 @@ namespace EntregaCoder.Repository
 
 
                 connection.Open();
-                string commText = "SELECT  pv.Id, pv.Stock, pv.IdProducto, pv.IdVenta FROM Producto as p INNER JOIN ProductoVendido as pv ON p.Id = pv.IdProducto WHERE p.IdUsuario = @IdUsu";
+
+                string commText = "SELECT * FROM ProductoVendido as pv INNER JOIN Venta as v ON v.Id = pv.IdVenta WHERE v.IdUsuario = @IdUsu";
+
                 SqlCommand Comm = new SqlCommand(commText, connection);
                 var Parametero = new SqlParameter("IdUsu", SqlDbType.BigInt);
                 Parametero.Value = IdUsuario;
